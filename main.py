@@ -1,7 +1,13 @@
 import os
 import argparse
 import logging.handlers
+
+import pymongo as pymongo
 from dotenv import load_dotenv
+from pyspark.sql import SparkSession
+import findspark
+
+
 from src.data_formatters.data_formatter import DataFormatter
 
 # Create logger object
@@ -78,6 +84,31 @@ def main():
             # data_collector.upload_csv_files_to_hdfs(TEMPORAL_LANDING_CSV_DIR_PATH)
             #             # data_collector.upload_json_files_to_hdfs(TEMPORAL_LANDING_JSON_DIR_PATH)
             #             # data_collector.download_from_opendata_api_to_hdfs()
+
+            findspark.init()
+
+
+
+            spark = SparkSession \
+                .builder \
+                .master(f"local[*]") \
+                .appName("myApp") \
+                .config('spark.jars.packages', 'org.mongodb.spark:mongo-spark-connector_2.12:3.0.1') \
+                .getOrCreate()
+
+            # specify the IP address and port number of the MongoDB instance
+            mongo_host = '10.4.41.68'
+            mongo_port = 27017
+
+            # create a MongoClient object and connect to the instance
+            #mongo_client = pymongo.MongoClient(mongo_host, mongo_port)
+
+            restaurantsRDD = spark.read.format("mongo") \
+                .option('uri', f"mongodb://10.4.41.68/test.restaurants") \
+                .load() \
+                .rdd
+
+            restaurantsRDD.foreach(lambda r: print(r))
 
             logger.info('Data collection completed successfully.')
 
