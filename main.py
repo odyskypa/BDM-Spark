@@ -1,13 +1,10 @@
 import os
 import argparse
+import findspark
 import logging.handlers
-
-import pymongo as pymongo
+from pymongo import MongoClient
 from dotenv import load_dotenv
 from pyspark.sql import SparkSession
-import findspark
-
-
 from src.data_formatters.data_formatter import DataFormatter
 
 # Create logger object
@@ -37,26 +34,65 @@ console_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 logger.addHandler(console_handler)
 
+# Initialize Spark Locally
+findspark.init()
+
 # Load environment variables from config..env
 load_dotenv()
 
-# Define local data directory path from environment variables
-# GLOBAL_DATA_DIR_PATH = os.getenv('GLOBAL_DATA_DIR_PATH')
+# Define VM_HOST AND VM_USER parameters from environment variables
+VM_HOST = os.getenv('VM_HOST')
+VM_USER = os.getenv('VM_USER')
 
-# Define HDFS directory paths from temporal landing zone
+# Define MongoDB parameters from environment variables
+MONGODB_PORT = os.getenv('MONGODB_PORT')
+FORMATTED_DB = os.getenv('FORMATTED_DB')
+PERSISTENT_DB = os.getenv('PERSISTENT_DB')
+LOOKUP_TABLES_DISTRICT_FORMATTED_COLLECTION = os.getenv('LOOKUP_TABLES_DISTRICT_FORMATTED_COLLECTION')
 
-# TEMPORAL_LANDING_DIR_PATH = os.getenv('TEMPORAL_LANDING_DIR_PATH')
-# TEMPORAL_LANDING_CSV_DIR_PATH = os.getenv('TEMPORAL_LANDING_CSV_DIR_PATH')
-# TEMPORAL_LANDING_JSON_DIR_PATH = os.getenv('TEMPORAL_LANDING_JSON_DIR_PATH')
+def create_collection(host, port, database_name, collection_name):
+    # Connect to MongoDB
+    client = MongoClient(host, int(port))
+    try:
 
-# Define API authentication key for Open Data BCN API
-OPEN_DATA_API_KEY = os.getenv('OPEN_DATA_API_KEY')
+        # Access the database
+        db = client[database_name]
 
-# Define HDFS and HBase connection parameters from environment variables
-# HDFS_HBASE_HOST = os.getenv('HDFS_HBASE_HOST')
-# HDFS_PORT = os.getenv('HDFS_PORT')
-# HDFS_USER = os.getenv('HDFS_USER')
-# HBASE_PORT = os.getenv('HBASE_PORT')
+        # Create a new collection
+        collection = db[collection_name]
+
+        # Log collection information
+        logger.info(f"Collection '{collection_name}' created in database '{database_name}'")
+        client.close()
+    except Exception as e:
+        logger.error(f"An error occurred: {e}")
+        client.close()
+
+
+def merge_two_collections_and_drop_duplicates(spark, vm_host, mongodb_port, input_db, input_collection1,
+                                              input_collection2,
+                                              output_db,
+                                              output_collection
+                                              ):
+    # Read the rent_lookup_district collection
+    x1_df = spark.read.format("mongo") \
+        .option('uri', f"mongodb://{vm_host}:{mongodb_port}/{input_db}.{input_collection1}") \
+        .load()
+
+    # Read the income_lookup_district collection
+    x2_df = spark.read.format("mongo") \
+        .option('uri', f"mongodb://{vm_host}:{mongodb_port}/{input_db}.{input_collection2}") \
+        .load()
+
+    # Union the two DataFrames and remove duplicates
+    unified_df = x1_df.union(x2_df).distinct()
+
+    # Save the unified data into the new collection
+    unified_df.write.format("mongo") \
+        .option('uri',
+                f"mongodb://{vm_host}:{mongodb_port}/{output_db}.{output_collection}") \
+        .mode("overwrite") \
+        .save()
 
 
 def main():
@@ -77,7 +113,6 @@ def main():
         try:
             # Initialize a DataCollector instance
             data_formatter = DataFormatter(
-                OPEN_DATA_API_KEY,
                 logger)
 
             # Run the data collection functions
@@ -85,32 +120,49 @@ def main():
             #             # data_collector.upload_json_files_to_hdfs(TEMPORAL_LANDING_JSON_DIR_PATH)
             #             # data_collector.download_from_opendata_api_to_hdfs()
 
-            findspark.init()
+            # spark = SparkSession \
+            #     .builder \
+            #     .master(f"local[*]") \
+            #     .appName("myApp") \
+            #     .config('spark.jars.packages', 'org.mongodb.spark:mongo-spark-connector_2.12:3.0.1') \
+            #     .getOrCreate()
+            #
+            # create_collection(VM_HOST, MONGODB_PORT, FORMATTED_DB, LOOKUP_TABLES_DISTRICT_FORMATTED_COLLECTION)
+            #
+            # idealistaRDD = spark.read.format("mongo") \
+            #     .option('uri', f"mongodb://{VM_HOST}/persistent.idealista") \
+            #     .load() \
+            #     .rdd
+            #
+            # #idealistaRDD.foreach(lambda r: print(r))
+            # print(idealistaRDD.take(3))
 
-
-
-            spark = SparkSession \
-                .builder \
+            # Create a SparkSession
+            spark = SparkSession.builder \
                 .master(f"local[*]") \
-                .appName("myApp") \
+                .appName("Unify Lookup District") \
                 .config('spark.jars.packages', 'org.mongodb.spark:mongo-spark-connector_2.12:3.0.1') \
                 .getOrCreate()
 
-            # specify the IP address and port number of the MongoDB instance
-            mongo_host = '10.4.41.68'
-            mongo_port = 27017
 
-            # create a MongoClient object and connect to the instance
-            #mongo_client = pymongo.MongoClient(mongo_host, mongo_port)
+            create_collection(VM_HOST, MONGODB_PORT, FORMATTED_DB, "lookup_tables_district")
+            create_collection(VM_HOST, MONGODB_PORT, FORMATTED_DB, "lookup_tables_neighborhood")
 
-            restaurantsRDD = spark.read.format("mongo") \
-                .option('uri', f"mongodb://10.4.41.68/test.restaurants") \
-                .load() \
-                .rdd
+            merge_two_collections_and_drop_duplicates(spark, VM_HOST, MONGODB_PORT, PERSISTENT_DB,
+                                                      "income_lookup_district",
+                                                      "rent_lookup_district",
+                                                      FORMATTED_DB,
+                                                      "lookup_tables_district")
 
-            restaurantsRDD.foreach(lambda r: print(r))
+            merge_two_collections_and_drop_duplicates(spark, VM_HOST, MONGODB_PORT, PERSISTENT_DB,
+                                                      "income_lookup_neighborhood",
+                                                      "rent_lookup_neighborhood",
+                                                      FORMATTED_DB,
+                                                      "lookup_tables_neighborhood")
 
-            logger.info('Data collection completed successfully.')
+
+
+            logger.info('Formatting District and Neighborhood Lookup Tables completed successfully.')
 
         except Exception as e:
 
