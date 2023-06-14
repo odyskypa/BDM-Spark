@@ -48,8 +48,8 @@ FORMATTED_DB = os.getenv('FORMATTED_DB')
 PERSISTENT_DB = os.getenv('PERSISTENT_DB')
 LOOKUP_TABLES_DISTRICT_FORMATTED_COLLECTION = os.getenv('LOOKUP_TABLES_DISTRICT_FORMATTED_COLLECTION')
 
-def main():
 
+def main():
     # Create argument parser
     parser = argparse.ArgumentParser(description='Temporal Landing Zone')
 
@@ -66,17 +66,19 @@ def main():
         try:
             # Initialize a DataCollector instance
             data_formatter = DataFormatter(logger, VM_HOST, MONGODB_PORT, PERSISTENT_DB, FORMATTED_DB)
-            data_formatter.format_lookup_tables()
-            data_formatter.reconcile_data_with_lookup("persistent.income", "formatted.lookup_tables_district",
-                                                       "formatted.income_reconciled", "district_name",
-                                                       "district_reconciled", "_id", "district_id")
+            # data_formatter.format_lookup_table("lookup_table_district",
+            #                                    "income_lookup_district", "rent_lookup_district")
+            # data_formatter.format_lookup_table("lookup_table_neighborhood",
+            #                                    "income_lookup_neighborhood", "rent_lookup_neighborhood")
+            data_formatter.reconcile_data_with_lookup("persistent.income", "formatted.lookup_table_district",
+                                                      "formatted.income_reconciled", "district_name",
+                                                      "district_reconciled", "_id", "district_id")
 
-            data_formatter.reconcile_data_with_lookup("persistent.building_age", "formatted.lookup_tables_district",
+            data_formatter.reconcile_data_with_lookup("persistent.building_age", "formatted.lookup_table_district",
                                                       "formatted.building_age_reconciled", "district_name",
                                                       "district_reconciled", "_id", "district_id")
 
-
-            logger.info('Building the Formatted Zone from the Peristent Zone completed successfully')
+            logger.info('Building the Formatted Zone from the Persistent Zone completed successfully')
 
         except Exception as e:
 
