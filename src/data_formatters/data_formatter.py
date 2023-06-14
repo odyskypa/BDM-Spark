@@ -31,7 +31,7 @@ class DataFormatter:
             db = client[database_name]
 
             # Create a new collection
-            collection = db.create_collection(collection_name)
+            db.create_collection(collection_name)
 
             # Log collection information
             self.logger.info(f"Collection '{collection_name}' created in database '{database_name}'")
@@ -45,34 +45,43 @@ class DataFormatter:
             # Close the client connection
             client.close()
 
+    def read_mongo_collection(self, db_name, collection_name):
+        uri = f"mongodb://{self.vm_host}:{self.mongodb_port}/{db_name}.{collection_name}"
+        df = self.spark.read.format("mongo") \
+            .option('uri', uri) \
+            .option('encoding', 'utf-8-sig') \
+            .load()
+        return df
+
+    def write_to_mongo_collection(self, db_name, collection_name, dataframe):
+        uri = f"mongodb://{self.vm_host}:{self.mongodb_port}/{db_name}.{collection_name}"
+        dataframe.write.format("mongo") \
+            .option('uri', uri) \
+            .option('encoding', 'utf-8-sig') \
+            .mode("append") \
+            .partitionBy("_id") \
+            .save()
+
     def merge_two_collections_and_drop_duplicates(self, input_collection1, input_collection2, output_collection):
         try:
             self.logger.info(f"Reading '{input_collection1}' collection from MongoDB...")
-            x1_df = self.spark.read.format("mongo") \
-                .option('uri', f"mongodb://{self.vm_host}:{self.mongodb_port}/{self.persistent_db}.{input_collection1}") \
-                .load()
-            self.logger.info(f"Reading '{input_collection2}' collection from MongoDB...")
-            x2_df = self.spark.read.format("mongo") \
-                .option('uri', f"mongodb://{self.vm_host}:{self.mongodb_port}/{self.persistent_db}.{input_collection2}") \
-                .load()
+            x1_df = self.read_mongo_collection(self.persistent_db, input_collection1)
 
-            self.logger.info("Merging and deduplicating DataFrames...")
+            self.logger.info(f"Reading '{input_collection2}' collection from MongoDB...")
+            x2_df = self.read_mongo_collection(self.persistent_db, input_collection2)
+
+            self.logger.info("Merging and deduplicating ...")
             unified_df = x1_df.union(x2_df).distinct()
 
             self.logger.info(f"Reading '{output_collection}' collection from MongoDB...")
-            existing_df = self.spark.read.format("mongo") \
-                .option('uri', f"mongodb://{self.vm_host}:{self.mongodb_port}/{self.formatted_db}.{output_collection}") \
-                .load()
+            existing_df = self.read_mongo_collection(self.formatted_db, output_collection)
 
             if existing_df.count() > 0:
                 self.logger.info("Filtering out already existing records...")
                 unified_df = unified_df.subtract(existing_df)
 
             self.logger.info(f"Saving new records into '{output_collection}' collection in MongoDB...")
-            unified_df.write.format("mongo") \
-                .option('uri', f"mongodb://{self.vm_host}:{self.mongodb_port}/{self.formatted_db}.{output_collection}") \
-                .mode("append") \
-                .save()
+            self.write_to_mongo_collection( self.formatted_db, output_collection, unified_df)
 
             self.logger.info("Data merge and deduplication completed successfully.")
         except Exception as e:
@@ -98,16 +107,10 @@ class DataFormatter:
         try:
 
             self.logger.info(f"Reading input data from MongoDB collection '{input_collection}'...")
-            inputDF = self.spark.read.format("mongo") \
-                .option('uri', f"mongodb://{self.vm_host}/{input_collection}") \
-                .option('encoding', 'utf-8-sig') \
-                .load()
+            inputDF = self.read_mongo_collection(self.persistent_db, input_collection)
 
             self.logger.info(f"Reading lookup data from MongoDB collection '{lookup_collection}'...")
-            lookupDF = self.spark.read.format("mongo") \
-                .option('uri', f"mongodb://{self.vm_host}/{lookup_collection}") \
-                .option('encoding', 'utf-8-sig') \
-                .load()
+            lookupDF = self.read_mongo_collection(self.formatted_db, lookup_collection)
             lookupDF = lookupDF.select(lookup_join_attribute, lookup_id)
 
             self.logger.info("Performing join and reconciliation...")
@@ -117,20 +120,14 @@ class DataFormatter:
                 .drop(lookupDF[lookup_id])
 
             self.logger.info(f"Reading existing data from MongoDB collection '{reconciled_collection}'...")
-            existingDF = self.spark.read.format("mongo") \
-                .option('uri', f"mongodb://{self.vm_host}/{reconciled_collection}") \
-                .option('encoding', 'utf-8-sig') \
-                .load()
+            existingDF = self.read_mongo_collection(self.formatted_db, reconciled_collection)
 
             if existingDF.count() > 0:
                 self.logger.info("Filtering out already existing records...")
                 resultDF = resultDF.subtract(existingDF)
 
             self.logger.info(f"Writing result DataFrame to MongoDB collection '{reconciled_collection}'...")
-            resultDF.write.format("mongo") \
-                .option('uri', f"mongodb://{self.vm_host}/{reconciled_collection}") \
-                .mode("overwrite") \
-                .save()
+            self.write_to_mongo_collection( self.formatted_db, reconciled_collection, resultDF)
 
             resultDF.show()
         except Exception as e:

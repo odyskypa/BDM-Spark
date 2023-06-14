@@ -66,16 +66,16 @@ def main():
         try:
             # Initialize a DataCollector instance
             data_formatter = DataFormatter(logger, VM_HOST, MONGODB_PORT, PERSISTENT_DB, FORMATTED_DB)
-            # data_formatter.format_lookup_table("lookup_table_district",
-            #                                    "income_lookup_district", "rent_lookup_district")
-            # data_formatter.format_lookup_table("lookup_table_neighborhood",
-            #                                    "income_lookup_neighborhood", "rent_lookup_neighborhood")
-            data_formatter.reconcile_data_with_lookup("persistent.income", "formatted.lookup_table_district",
-                                                      "formatted.income_reconciled", "district_name",
+            data_formatter.format_lookup_table("lookup_table_district",
+                                               "income_lookup_district", "rent_lookup_district")
+            data_formatter.format_lookup_table("lookup_table_neighborhood",
+                                               "income_lookup_neighborhood", "rent_lookup_neighborhood")
+            data_formatter.reconcile_data_with_lookup("income", "lookup_table_district",
+                                                      "income_reconciled", "district_name",
                                                       "district_reconciled", "_id", "district_id")
 
-            data_formatter.reconcile_data_with_lookup("persistent.building_age", "formatted.lookup_table_district",
-                                                      "formatted.building_age_reconciled", "district_name",
+            data_formatter.reconcile_data_with_lookup("building_age", "lookup_table_district",
+                                                      "building_age_reconciled", "district_name",
                                                       "district_reconciled", "_id", "district_id")
 
             logger.info('Building the Formatted Zone from the Persistent Zone completed successfully')
