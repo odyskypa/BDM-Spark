@@ -202,9 +202,31 @@ def main():
                 pass
             elif action == 'drop-duplicates':
                 logger.info('Dropping duplicates...')
-                # Code for the 'drop-duplicates' action
-                # ...
-                logger.info('Duplicates dropped.')
+
+                # logger.info('Read collection "income" from MongoDB.')
+                # income_df = data_formatter.read_mongo_collection(FORMATTED_DB, "income")
+                #
+                # logger.info('Duplicates dropped for collection "income".')
+                # deduplicated_income_df = data_formatter.drop_duplicates(income_df)
+                #
+                # logger.info('Read collection "building_age" from MongoDB.')
+                # building_age_df = data_formatter.read_mongo_collection(FORMATTED_DB, "building_age")
+                #
+                # logger.info('Duplicates dropped for collection "building_age".')
+                # deduplicated_building_age_df = data_formatter.drop_duplicates(building_age_df)
+                #
+                # logger.info('Writing deduplicated data back to MongoDB.')
+                #
+                # data_formatter.write_to_mongo_collection(FORMATTED_DB, "income", deduplicated_income_df)
+                # logger.info('Deduplicated "income" data written to MongoDB.')
+                #
+                # data_formatter.write_to_mongo_collection(FORMATTED_DB, "building_age", deduplicated_building_age_df)
+                # logger.info('Deduplicated "building_age" data written to MongoDB.')
+
+                data_formatter.transform_idealista_to_latest_info(FORMATTED_DB, "idealista", "idealista1")
+
+                logger.info('Duplicates dropped and data written to MongoDB successfully.')
+
                 pass
             elif action == 'reconcile-data':
                 logger.info('Reconciling data with lookup tables...')

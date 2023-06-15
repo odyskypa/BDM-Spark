@@ -1,6 +1,7 @@
 from pyspark.sql import SparkSession
 from pymongo import MongoClient
-from pyspark.sql.functions import col, struct
+from pyspark.sql.functions import col, max as spark_max, split, to_date, struct
+from pyspark.sql.window import Window
 from pyspark.sql.types import *
 
 
@@ -158,6 +159,75 @@ class DataFormatter:
             resultDF.show()
         except Exception as e:
             self.logger.error(f"An error occurred during data reconciliation: {e}")
+
+    def transform_idealista_to_latest_info(self, db_name, collection_name, destination_collection):
+
+        try:
+            # Load the MongoDB collection into a PySpark DataFrame
+            df = self.read_mongo_collection(db_name, collection_name)
+
+            df.show()
+            # Extract year, month, and day from the _id string and convert to a date column
+            df = df.withColumn("_id", to_date('_id', 'yyyy_MM_dd'))
+
+            df.show()
+
+            # Find the latest _id for each propertyCode
+            latest_dates = df.groupBy("value.propertyCode").agg(spark_max("_id").alias("latest_date"))
+
+            latest_dates.show()
+
+            # Join the original dataframe with the latest_dates to filter out the latest information
+            filtered_df = df.join(latest_dates, (df.value.propertyCode == latest_dates.propertyCode) & (
+                        df._id == latest_dates.latest_date))
+
+            filtered_df.show()
+
+            # Select the required attributes and create a new dataframe
+            new_df = filtered_df.select(
+                filtered_df.value.propertyCode.alias("_id"),
+                filtered_df.value.address,
+                filtered_df.value.bathrooms,
+                filtered_df.value.country,
+                filtered_df.value.detailedType,
+                filtered_df.value.distance,
+                filtered_df.value.district,
+                filtered_df.value.exterior,
+                filtered_df.value.externalReference,
+                filtered_df.value.floor,
+                filtered_df.value.has360,
+                filtered_df.value.has3DTour,
+                filtered_df.value.hasLift,
+                filtered_df.value.hasPlan,
+                filtered_df.value.hasStaging,
+                filtered_df.value.hasVideo,
+                filtered_df.value.latitude,
+                filtered_df.value.longitude,
+                filtered_df.value.municipality,
+                filtered_df.value.neighborhood,
+                filtered_df.value.newDevelopment,
+                filtered_df.value.numPhotos,
+                filtered_df.value.operation,
+                filtered_df.value.price,
+                filtered_df.value.priceByArea,
+                filtered_df.value.rooms,
+                filtered_df.value.showAddress,
+                filtered_df.value.size,
+                filtered_df.value.status,
+                filtered_df.value.suggestedTexts,
+                filtered_df.value.thumbnail,
+                filtered_df.value.topNewDevelopment,
+                filtered_df.value.url
+            )
+
+            new_df.show()
+
+            # Save the transformed DataFrame back to MongoDB
+            self.write_to_mongo_collection(db_name, destination_collection, new_df)
+
+            self.logger.info("Transformation completed successfully.")
+        except Exception as e:
+            self.logger.error("Error occurred during transformation: %s", str(e))
 
     def convert_collection_data_types(self, db_name_input, db_name_output, collection_name, new_schema):
         # Read the collection from MongoDB
