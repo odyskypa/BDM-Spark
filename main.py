@@ -4,6 +4,7 @@ import findspark
 import logging.handlers
 from dotenv import load_dotenv
 from pyspark.sql.types import *
+from pyspark.sql.functions import lit
 
 from src.data_formatters.data_formatter import DataFormatter
 from src.descriptive_analysis.data_description import DataDescription
@@ -241,8 +242,8 @@ def main():
 
                 logger.info(f"Reading lookup data from MongoDB...")
                 lookupDF_district = data_formatter.read_mongo_collection(FORMATTED_DB, "lookup_table_district")
-                lookupDF_district = lookupDF_district.select("district", "_id")
-                # lookupDF_district = lookupDF_district.withColumnRenamed("district_name", "district")
+                lookupDF_district = lookupDF_district.select("district_name", "_id")
+                lookupDF_district = lookupDF_district.withColumnRenamed("district_name", "district")
                 lookupDF_district.cache()
 
                 lookupDF_neighborhood = data_formatter.read_mongo_collection(FORMATTED_DB, "lookup_table_neighborhood")
@@ -251,14 +252,39 @@ def main():
                 lookupDF_neighborhood.cache()
 
                 inputDF_income = data_formatter.read_mongo_collection(PERSISTENT_DB, "income")
+                inputDF_building_age = data_formatter.read_mongo_collection(PERSISTENT_DB, "building_age")
+                input_idealista = data_formatter.read_mongo_collection(FORMATTED_DB, "idealista_cleaned")
+                input_idealista = input_idealista.withColumnRenamed("district", "district_name")
+                input_idealista = input_idealista.withColumnRenamed("neighborhood", "neighborhood_name")
+                input_idealista = input_idealista.withColumn('district_id', lit(''))
+                input_idealista = input_idealista.withColumn('neighborhood_id', lit(''))
 
-                income_rec = data_formatter.reconcile_data_with_lookup(inputDF_income, lookupDF_district,
-                                                 "district_name", "district", "_id", "district_id", 2)
 
-                final_inc_rec = data_formatter.reconcile_data_with_lookup(income_rec, lookupDF_neighborhood,
-                                                 "neigh_name ", "neighborhood", "_id", "_id", 6)
+                #income_rec = data_formatter.reconcile_data_with_lookup(inputDF_income, lookupDF_district,
+                #                                 "district_name", "district", "_id", "district_id", 2)
+
+                #final_inc_rec = data_formatter.reconcile_data_with_lookup(income_rec, lookupDF_neighborhood,
+                #                                 "neigh_name ", "neighborhood", "_id", "_id", 3)
+
+                #building_age_rec = data_formatter.reconcile_data_with_lookup(inputDF_building_age, lookupDF_district,
+                #                                 "district_name", "district", "_id", "district_id", 2)
+
+                #final_build_age_rec = data_formatter.reconcile_data_with_lookup(building_age_rec, lookupDF_neighborhood,
+                #                                                          "neigh_name", "neighborhood", "_id", "_id",
+                #                                                          3)
+
+                #idealista_rec = data_formatter.reconcile_data_with_lookup(input_idealista, lookupDF_district,
+                                                                             #"district_name", "district", "_id",
+                                                                             #"district_id", 2)
+
+                #final_idealista_rec = data_formatter.reconcile_data_with_lookup(idealista_rec, lookupDF_neighborhood,
+                                                                          #"neighborhood_name", "neighborhood", "_id",
+                                                                          #"neighborhood_id", 2)
 
                 #data_formatter.write_to_mongo_collection(FORMATTED_DB, "income_reconciled", final_inc_rec)
+                #data_formatter.write_to_mongo_collection(FORMATTED_DB, "building_age_reconciled", final_build_age_rec)
+                #data_formatter.write_to_mongo_collection(FORMATTED_DB, "idealista_reconciled", final_idealista_rec)
+
 
                 ###################### OLD ############################################################################
                 # data_formatter.reconcile_data_with_lookup("income", "lookup_table_district",

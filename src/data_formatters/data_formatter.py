@@ -2,6 +2,11 @@ from datetime import datetime
 from pyspark.sql import SparkSession
 from pymongo import MongoClient
 from pyspark.sql.functions import col, max as spark_max, to_date, concat, lit, explode, levenshtein, when
+from pyspark.sql.functions import lower, regexp_replace, trim
+from pyspark.sql.functions import udf
+from fuzzywuzzy import fuzz
+from pyspark.sql.types import DoubleType
+from unidecode import unidecode
 
 class DataFormatter:
 
@@ -192,6 +197,10 @@ class DataFormatter:
 
     def reconcile_data_with_lookup(self, input_dF, lookup_df, input_join_attribute, lookup_join_attribute, lookup_id, input_id_reconcile, threshold):
         try:
+
+            input_dF = input_dF.withColumn(input_join_attribute, lower(input_dF[input_join_attribute]))
+            input_dF = input_dF.withColumn(input_join_attribute, regexp_replace(input_dF[input_join_attribute], "[\u0300-\u036F]", ""))
+            #input_dF = input_dF.withColumn(input_join_attribute, trim(input_dF[input_join_attribute]))
 
             self.logger.info("Performing join and reconciliation...")
             resultDF = input_dF.join(lookup_df,
