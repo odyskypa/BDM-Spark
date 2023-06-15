@@ -1,9 +1,7 @@
+from datetime import datetime
 from pyspark.sql import SparkSession
 from pymongo import MongoClient
-from pyspark.sql.functions import col, max as spark_max, split, to_date, struct
-from pyspark.sql.window import Window
-from pyspark.sql.types import *
-
+from pyspark.sql.functions import col, max as spark_max, to_date, concat, lit, explode, levenshtein, when
 
 class DataFormatter:
 
@@ -48,6 +46,29 @@ class DataFormatter:
             # Close the client connection
             client.close()
 
+    def drop_mongo_collection(self, db_name, collection_name):
+        # Connect to MongoDB
+        client = MongoClient(self.vm_host, int(self.mongodb_port))
+        try:
+
+            # Access the specified database
+            db = client[db_name]
+
+            # Drop the collection
+            db[collection_name].drop()
+
+            # Close the MongoDB client
+            client.close()
+
+        except Exception as e:
+            self.logger.error(
+                f"An error occurred during the dropping of the collection: {collection_name} in MongoDB database:"
+                f" {db_name}. The error is: {e}")
+
+        finally:
+            # Close the client connection
+            client.close()
+
     def read_mongo_collection(self, db_name, collection_name):
         uri = f"mongodb://{self.vm_host}:{self.mongodb_port}/{db_name}.{collection_name}"
         df = self.spark.read.format("mongo") \
@@ -56,29 +77,17 @@ class DataFormatter:
             .load()
         return df
 
-    def write_to_mongo_collection(self, db_name, collection_name, dataframe, partition = True, append = True):
+    def write_to_mongo_collection(self, db_name, collection_name, dataframe, append = True):
         uri = f"mongodb://{self.vm_host}:{self.mongodb_port}/{db_name}.{collection_name}"
-        if partition and append:
-            dataframe.write.format("mongo") \
-                .option('uri', uri) \
-                .option('encoding', 'utf-8-sig') \
-                .mode("append") \
-                .partitionBy("_id") \
-                .save()
-        elif partition and not append:
-            dataframe.write.format("mongo") \
-                .option('uri', uri) \
-                .option('encoding', 'utf-8-sig') \
-                .mode("overwrite") \
-                .partitionBy("_id") \
-                .save()
-        elif not partition and not append:
-            dataframe.write.format("mongo") \
-                .option('uri', uri) \
-                .option('encoding', 'utf-8-sig') \
-                .mode("overwrite") \
-                .save()
 
+        if not append:
+            self.drop_mongo_collection(db_name, collection_name)
+
+        dataframe.write.format("mongo") \
+            .option("uri", uri) \
+            .option("encoding", "utf-8-sig") \
+            .mode("append") \
+            .save()
 
     def merge_dataframes(self, input_collection1, input_collection2):
         try:
@@ -142,9 +151,15 @@ class DataFormatter:
             lookupDF = self.read_mongo_collection(self.formatted_db, lookup_collection)
             lookupDF = lookupDF.select(lookup_join_attribute, lookup_id)
 
+            threshold = 2
+
             self.logger.info("Performing join and reconciliation...")
-            resultDF = inputDF.join(lookupDF, inputDF[input_join_attribute] == lookupDF[lookup_join_attribute], "left") \
-                .withColumn(input_id_reconcile, lookupDF[lookup_id]) \
+            resultDF = inputDF.join(lookupDF,
+                                    when(
+                                        levenshtein(col(input_join_attribute), col(lookup_join_attribute)) <= threshold,
+                                        True).otherwise(False),
+                                    "left"
+                                    ).withColumn(input_id_reconcile, lookupDF[lookup_id]) \
                 .drop(lookupDF[lookup_join_attribute]) \
                 .drop(lookupDF[lookup_id])
 
@@ -156,74 +171,42 @@ class DataFormatter:
             self.logger.info(f"Writing result DataFrame to MongoDB collection '{reconciled_collection}'...")
             self.write_to_mongo_collection( self.formatted_db, reconciled_collection, resultDF)
 
-            resultDF.show()
+            #resultDF.show()
         except Exception as e:
             self.logger.error(f"An error occurred during data reconciliation: {e}")
 
-    def transform_idealista_to_latest_info(self, db_name, collection_name, destination_collection):
+    def transform_idealista_to_latest_info(self, db_name, collection_name):
 
         try:
             # Load the MongoDB collection into a PySpark DataFrame
             df = self.read_mongo_collection(db_name, collection_name)
 
-            df.show()
-            # Extract year, month, and day from the _id string and convert to a date column
-            df = df.withColumn("_id", to_date('_id', 'yyyy_MM_dd'))
+            # Explode the 'value' array
+            exploded_df = df.withColumn("exploded_value", explode(col("value"))).drop("value")
 
-            df.show()
+            # Transform the collection
+            transformed_df = exploded_df.selectExpr("_id as date", "exploded_value.*") \
+                .withColumn("new_id", concat(col("date"), lit("_"), col("propertyCode"))) \
+                .withColumnRenamed("new_id", "_id")
 
-            # Find the latest _id for each propertyCode
-            latest_dates = df.groupBy("value.propertyCode").agg(spark_max("_id").alias("latest_date"))
+            transformed_df = transformed_df.withColumn("date", to_date(col("date"), "yyyy_MM_dd"))
 
-            latest_dates.show()
+            latest_dates = transformed_df.groupBy("propertyCode").agg(spark_max("date").alias("latestDate"))
 
-            # Join the original dataframe with the latest_dates to filter out the latest information
-            filtered_df = df.join(latest_dates, (df.value.propertyCode == latest_dates.propertyCode) & (
-                        df._id == latest_dates.latest_date))
+            # Perform a left semi join to filter the transformed_df based on the latest dates
+            filtered_df = transformed_df.join(latest_dates,
+                                              (transformed_df.propertyCode == latest_dates.propertyCode) & (
+                                                          transformed_df.date == latest_dates.latestDate), "left_semi")
+            # Drop the _id column
+            filtered_df = filtered_df.drop("_id")
 
-            filtered_df.show()
+            # Rename the propertyCode column to _id
+            filtered_df = filtered_df.withColumnRenamed("propertyCode", "_id")
 
-            # Select the required attributes and create a new dataframe
-            new_df = filtered_df.select(
-                filtered_df.value.propertyCode.alias("_id"),
-                filtered_df.value.address,
-                filtered_df.value.bathrooms,
-                filtered_df.value.country,
-                filtered_df.value.detailedType,
-                filtered_df.value.distance,
-                filtered_df.value.district,
-                filtered_df.value.exterior,
-                filtered_df.value.externalReference,
-                filtered_df.value.floor,
-                filtered_df.value.has360,
-                filtered_df.value.has3DTour,
-                filtered_df.value.hasLift,
-                filtered_df.value.hasPlan,
-                filtered_df.value.hasStaging,
-                filtered_df.value.hasVideo,
-                filtered_df.value.latitude,
-                filtered_df.value.longitude,
-                filtered_df.value.municipality,
-                filtered_df.value.neighborhood,
-                filtered_df.value.newDevelopment,
-                filtered_df.value.numPhotos,
-                filtered_df.value.operation,
-                filtered_df.value.price,
-                filtered_df.value.priceByArea,
-                filtered_df.value.rooms,
-                filtered_df.value.showAddress,
-                filtered_df.value.size,
-                filtered_df.value.status,
-                filtered_df.value.suggestedTexts,
-                filtered_df.value.thumbnail,
-                filtered_df.value.topNewDevelopment,
-                filtered_df.value.url
-            )
+            # Reorder the columns to make _id the first column
+            filtered_df = filtered_df.select("_id", *filtered_df.columns[:-1])
 
-            new_df.show()
-
-            # Save the transformed DataFrame back to MongoDB
-            self.write_to_mongo_collection(db_name, destination_collection, new_df)
+            return filtered_df
 
             self.logger.info("Transformation completed successfully.")
         except Exception as e:
@@ -240,4 +223,4 @@ class DataFormatter:
                 df_with_new_schema = df_with_new_schema.withColumn(field.name, df[field.name].cast(field.dataType))
 
         # Write the DataFrame back to the same collection
-        self.write_to_mongo_collection(db_name_output, collection_name, df_with_new_schema, partition=True, append=True)
+        self.write_to_mongo_collection(db_name_output, collection_name, df_with_new_schema, True)

@@ -6,6 +6,8 @@ from dotenv import load_dotenv
 from pyspark.sql.types import *
 
 from src.data_formatters.data_formatter import DataFormatter
+from src.descriptive_analysis.data_description import DataDescription
+from src.predictive_analysis.data_modeling import DataModeling
 
 # Create logger object
 logger = logging.getLogger(__name__)
@@ -201,43 +203,57 @@ def main():
                 logger.info('Data types conversion completed.')
                 pass
             elif action == 'drop-duplicates':
+                ### DONE !!!!!!!!
                 logger.info('Dropping duplicates...')
 
-                # logger.info('Read collection "income" from MongoDB.')
-                # income_df = data_formatter.read_mongo_collection(FORMATTED_DB, "income")
-                #
-                # logger.info('Duplicates dropped for collection "income".')
-                # deduplicated_income_df = data_formatter.drop_duplicates(income_df)
-                #
-                # logger.info('Read collection "building_age" from MongoDB.')
-                # building_age_df = data_formatter.read_mongo_collection(FORMATTED_DB, "building_age")
-                #
-                # logger.info('Duplicates dropped for collection "building_age".')
-                # deduplicated_building_age_df = data_formatter.drop_duplicates(building_age_df)
-                #
-                # logger.info('Writing deduplicated data back to MongoDB.')
-                #
-                # data_formatter.write_to_mongo_collection(FORMATTED_DB, "income", deduplicated_income_df)
-                # logger.info('Deduplicated "income" data written to MongoDB.')
-                #
-                # data_formatter.write_to_mongo_collection(FORMATTED_DB, "building_age", deduplicated_building_age_df)
-                # logger.info('Deduplicated "building_age" data written to MongoDB.')
+                logger.info('Read collection "income" from MongoDB.')
+                income_df = data_formatter.read_mongo_collection(FORMATTED_DB, "income")
 
-                data_formatter.transform_idealista_to_latest_info(FORMATTED_DB, "idealista", "idealista1")
+                logger.info('Duplicates dropped for collection "income".')
+                deduplicated_income_df = data_formatter.drop_duplicates(income_df)
+
+                logger.info('Read collection "building_age" from MongoDB.')
+                building_age_df = data_formatter.read_mongo_collection(FORMATTED_DB, "building_age")
+
+                logger.info('Duplicates dropped for collection "building_age".')
+                deduplicated_building_age_df = data_formatter.drop_duplicates(building_age_df)
+
+                logger.info('Writing deduplicated data back to MongoDB.')
+
+                data_formatter.write_to_mongo_collection(FORMATTED_DB, "income", deduplicated_income_df)
+                logger.info('Deduplicated "income" data written to MongoDB.')
+
+                data_formatter.write_to_mongo_collection(FORMATTED_DB, "building_age", deduplicated_building_age_df)
+                logger.info('Deduplicated "building_age" data written to MongoDB.')
+
+                logger.info('Reading collection "idealista" from MongoDB.')
+
+                df = data_formatter.transform_idealista_to_latest_info(FORMATTED_DB, "idealista")
+                data_formatter.write_to_mongo_collection(FORMATTED_DB, "idealista_cleaned", df)
+                logger.info('Deduplicated "idealista" data written to MongoDB.')
 
                 logger.info('Duplicates dropped and data written to MongoDB successfully.')
 
                 pass
             elif action == 'reconcile-data':
+                ### Only reconciling Idealista is missing, and the names
                 logger.info('Reconciling data with lookup tables...')
+                #
+                # data_formatter.reconcile_data_with_lookup("income", "lookup_table_district",
+                #                                           "income_reconciled", "district_name",
+                #                                           "district_reconciled", "_id", "district_id")
 
-                data_formatter.reconcile_data_with_lookup("income", "lookup_table_district",
-                                                          "income_reconciled", "district_name",
-                                                          "district_reconciled", "_id", "district_id")
+                # data_formatter.reconcile_data_with_lookup("income", "lookup_table_neighborhood",
+                #                                           "income_reconciled", "neigh_name ",
+                #                                           "neighborhood_reconciled", "_id", "_id")
 
-                data_formatter.reconcile_data_with_lookup("building_age", "lookup_table_district",
-                                                          "building_age_reconciled", "district_name",
-                                                          "district_reconciled", "_id", "district_id")
+                # data_formatter.reconcile_data_with_lookup("building_age", "lookup_table_district",
+                #                                           "building_age_reconciled", "district_name",
+                #                                           "district_reconciled", "_id", "district_id")
+                #
+                data_formatter.reconcile_data_with_lookup("building_age", "lookup_table_neighborhood",
+                                                          "building_age_reconciled", "neigh_name",
+                                                          "neighborhood_reconciled", "_id", "_id")
 
                 logger.info('Data reconciliation completed.')
                 pass
@@ -251,15 +267,27 @@ def main():
 
             logger.exception(f'Error occurred during data formatting process: {e}')
 
-    # elif exec_mode == 'another-arg':
-    #     try:
-    #
-    #         logger.info('another-arg run completed successfully.')
-    #
-    #     except Exception as e:
-    #         logger.exception(f'Error occurred during .....: {e}')
+    elif exec_mode == 'data-description':
+        try:
 
-    # Add more switch cases if needed for other execution modes
+            # Initialize a dataDescription instance
+            data_description = DataFormatter(logger, VM_HOST, MONGODB_PORT, PERSISTENT_DB, FORMATTED_DB)
+
+            logger.info('Data description processes completed.')
+
+        except Exception as e:
+            logger.exception(f'Error occurred during data description process: {e}')
+
+    elif exec_mode == 'data-prediction':
+        try:
+
+            # Initialize a DataCollector instance
+            data_prediction = DataModeling(logger, VM_HOST, MONGODB_PORT, PERSISTENT_DB, FORMATTED_DB)
+
+            logger.info('Data modeling processes completed.')
+
+        except Exception as e:
+            logger.exception(f'Error occurred during data modeling process: {e}')
     else:
         logger.error('Invalid execution mode specified.')
 
