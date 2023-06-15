@@ -1,44 +1,44 @@
 # Big Data Management - Universitat Politècnica de Catalunya
 ## Implementation of a (Big) Data Management Backbone
-### Barcelona Rentals - Territorial Income Distribution - Vehicle Motorization Index 
+### Barcelona Rentals - Territorial Income Distribution - Age of Buildings 
 ***
 ### Instructions for Executing the Code
 
 - Download Python version 3.10
 - Clone this repository locally
-  - ``` git clone git@github.com:barrioskilo/BDM.git```
+  - ``` git clone git@github.com:odyskypa/BDM-Spark.git```
 - Create a virtual environment with Python 3.10 interpreter and run the following command to install the required libraries:
   - ```
       pip install requirements.txt
     ```
-- Create a folder `data_sources` inside BDM folder.
-  - Create a folder per data source inside `data_sources` folder. E.g.:
-    - `./data_sources/idealista`
-    - `./data_sources/opendatabcn-income`
-    - `./data_sources/lookup_tables`
-  - Insert the raw data source files inside the appropriate folder.
-- Add a `.env` file inside BDM folder, including the following parameters with their appropriate values:
+- Add a `.env` file inside `BDM-Spark` folder, including the following parameters with their appropriate values:
   - ```
-    HDFS_HBASE_HOST='....' #Change This
-    HDFS_PORT=9870
-    HBASE_PORT=9090
-    HDFS_USER='....' #Change This
-    GLOBAL_DATA_DIR_PATH='./data_sources'
-    TEMPORAL_LANDING_DIR_PATH = '/temporal_landing'
-    TEMPORAL_LANDING_CSV_DIR_PATH= 'temporal_landing_CSV'
-    TEMPORAL_LANDING_JSON_DIR_PATH= 'temporal_landing_JSON'
-    OPEN_DATA_API_KEY= '...' #Change This
+    VM_HOST="..."
+    VM_USER="..."
+    MONGODB_PORT=27017
+    PERSISTENT_DB="persistent"
+    FORMATTED_DB="formatted"
     ```
-- For executing `data-collection` functionality in order to move data from the local machine or the Open Data BCN API to HDFS, make use of the following command:
+- The project is divided into 3 main parts:
+  - [The Data Formatting Processes](https://github.com/odyskypa/BDM-Spark/blob/main/src/data_formatters/data_formatter.py)
+  - [The Descriptive Analytics](https://github.com/odyskypa/BDM-Spark/blob/main/src/descriptive_analysis/data_description.py)
+  - [The Predictive Analytics](https://github.com/odyskypa/BDM-Spark/blob/main/src/predictive_analysis/data_modeling.py)
+- For executing the `Data Formatting` processes in order to `fix data-types`, `drop-duplicates` and `reconcile` the data sources
+make use of the following commands, with the respective order:
   - ``` 
-    python main.py data-collection
+    python main.py data-formatting merge-lookup-tables
+    python main.py data-formatting fix-data-types
+    python main.py data-formatting drop-duplicates
+    python main.py data-formatting reconcile-data
     ```
-- Otherwise, for executing `persistence-loading` functionality in order to move the available data of the `Temporal Landing Zone` to the `Persistence Landing Zone`, use the following command:
+- Moreover, for executing the `Descriptive Analytics` functionality in order to ...., use the following command:
   - ```
-    python main.py persistence-loading
+    python main.py data-description
     ```
+- Lastly, for executing the `Predictive Analytics` processes, follow the commands below:
+  - ```
+      python main.py data-prediction
+      ```
 
 ### Limitations
-  
-There is a problem with `macOS` systems (mainly with the paths), and it needs to be investigated.
-Execution in `Windows` machines is completed smoothly.
+
