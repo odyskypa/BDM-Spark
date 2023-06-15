@@ -48,47 +48,180 @@ VM_USER = os.getenv('VM_USER')
 MONGODB_PORT = os.getenv('MONGODB_PORT')
 FORMATTED_DB = os.getenv('FORMATTED_DB')
 PERSISTENT_DB = os.getenv('PERSISTENT_DB')
-LOOKUP_TABLES_DISTRICT_FORMATTED_COLLECTION = os.getenv('LOOKUP_TABLES_DISTRICT_FORMATTED_COLLECTION')
 
 
 def main():
     # Create argument parser
-    parser = argparse.ArgumentParser(description='Temporal Landing Zone')
+    parser = argparse.ArgumentParser(description='Formatted and Exploitation Landing Zones')
 
     # Add argument for execution mode
     parser.add_argument('exec_mode', type=str, choices=['data-formatting', 'persistence-loading'],
                         help='Execution mode')
 
+    # Add argument for action within data-formatting mode
+    parser.add_argument('action', type=str, choices=['merge-lookup-tables', 'fix-data-types', 'drop-duplicates',
+                                                     'reconcile-data'],
+                        help='Action within data-formatting mode')
+
     # Parse command line arguments
     args = parser.parse_args()
     exec_mode = args.exec_mode
+    action = args.action
 
     if exec_mode == 'data-formatting':
 
         try:
             # Initialize a DataCollector instance
             data_formatter = DataFormatter(logger, VM_HOST, MONGODB_PORT, PERSISTENT_DB, FORMATTED_DB)
-            # data_formatter.format_lookup_table("lookup_table_district",
-            #                                    "income_lookup_district", "rent_lookup_district")
-            # data_formatter.format_lookup_table("lookup_table_neighborhood",
-            #                                    "income_lookup_neighborhood", "rent_lookup_neighborhood")
-            # data_formatter.reconcile_data_with_lookup("income", "lookup_table_district",
-            #                                           "income_reconciled", "district_name",
-            #                                           "district_reconciled", "_id", "district_id")
-            #
-            # data_formatter.reconcile_data_with_lookup("building_age", "lookup_table_district",
-            #                                           "building_age_reconciled", "district_name",
-            #                                           "district_reconciled", "_id", "district_id")
-            # Example usage
-            column_data_types = {
-                "_id": "string",
-                "district": "string",
-                "district_name": "string",
-                "district_reconciled": "string",
-                "nested.neighborhood_id": "string"
-            }
 
-            data_formatter.change_data_types("formatted", "lookup_table_district", column_data_types)
+            if action == 'merge-lookup-tables':
+                ### DONE !!!!!!!
+                logger.info('Merging and deduplicate lookup tables...')
+
+                data_formatter.merge_lookup_table("lookup_table_district",
+                                                  "income_lookup_district", "rent_lookup_district")
+                data_formatter.merge_lookup_table("lookup_table_neighborhood",
+                                                  "income_lookup_neighborhood", "rent_lookup_neighborhood")
+
+                logger.info('Lookup table merge and deduplication completed.')
+                pass
+            elif action == 'fix-data-types':
+                ### DONE !!!!!!!!
+                logger.info('Fixing data types...')
+
+                # Define the new schema with the desired data types
+                new_schema_lookup_district = StructType([
+                    StructField("_id", StringType(), nullable=False),
+                    StructField("district", StringType(), nullable=False),
+                    StructField("district_name", StringType(), nullable=False),
+                    StructField("district_reconciled", StringType(), nullable=False),
+                    StructField("neighborhood_id", ArrayType(StringType()), nullable=False)
+                ])
+
+                # Call the function
+                data_formatter.convert_collection_data_types(FORMATTED_DB, FORMATTED_DB, "lookup_table_district",
+                                                             new_schema_lookup_district)
+
+                new_schema_lookup_neighborhood = StructType([
+                    StructField("_id", StringType(), nullable=False),
+                    StructField("neighborhood", StringType(), nullable=False),
+                    StructField("neighborhood_name", StringType(), nullable=False),
+                    StructField("neighborhood_reconciled", StringType(), nullable=False),
+                ])
+
+                # Call the function
+                data_formatter.convert_collection_data_types(FORMATTED_DB, FORMATTED_DB, "lookup_table_neighborhood",
+                                                             new_schema_lookup_neighborhood)
+
+                new_schema_idealista = StructType([
+                    StructField("_id", StringType(), nullable=False),
+                    StructField("value", ArrayType(StructType([
+                        StructField("address", StringType(), nullable=True),
+                        StructField("bathrooms", IntegerType(), nullable=True),
+                        StructField("country", StringType(), nullable=True),
+                        StructField("detailedType", StructType([
+                            StructField("subTypology", StringType(), nullable=True),
+                            StructField("typology", StringType(), nullable=True)
+                        ]), nullable=True),
+                        StructField("distance", StringType(), nullable=True),
+                        StructField("district", StringType(), nullable=True),
+                        StructField("exterior", BooleanType(), nullable=True),
+                        StructField("externalReference", StringType(), nullable=True),
+                        StructField("floor", IntegerType(), nullable=True),
+                        StructField("has360", BooleanType(), nullable=True),
+                        StructField("has3DTour", BooleanType(), nullable=True),
+                        StructField("hasLift", BooleanType(), nullable=True),
+                        StructField("hasPlan", BooleanType(), nullable=True),
+                        StructField("hasStaging", BooleanType(), nullable=True),
+                        StructField("hasVideo", BooleanType(), nullable=True),
+                        StructField("latitude", DoubleType(), nullable=True),
+                        StructField("longitude", DoubleType(), nullable=True),
+                        StructField("municipality", StringType(), nullable=True),
+                        StructField("neighborhood", StringType(), nullable=True),
+                        StructField("newDevelopment", BooleanType(), nullable=True),
+                        StructField("newDevelopmentFinished", BooleanType(), nullable=True),
+                        StructField("numPhotos", IntegerType(), nullable=True),
+                        StructField("operation", StringType(), nullable=True),
+                        StructField("parkingSpace", StructType([
+                            StructField("hasParkingSpace", BooleanType(), nullable=True),
+                            StructField("isParkingSpaceIncludedInPrice", BooleanType(), nullable=True),
+                            StructField("parkingSpacePrice", DoubleType(), nullable=True)
+                        ]), nullable=True),
+                        StructField("price", DoubleType(), nullable=True),
+                        StructField("priceByArea", DoubleType(), nullable=True),
+                        StructField("propertyCode", StringType(), nullable=True),
+                        StructField("propertyType", StringType(), nullable=True),
+                        StructField("province", StringType(), nullable=True),
+                        StructField("rooms", IntegerType(), nullable=True),
+                        StructField("showAddress", BooleanType(), nullable=True),
+                        StructField("size", DoubleType(), nullable=True),
+                        StructField("status", StringType(), nullable=True),
+                        StructField("suggestedTexts", StructType([
+                            StructField("subtitle", StringType(), nullable=True),
+                            StructField("title", StringType(), nullable=True)
+                        ]), nullable=True),
+                        StructField("thumbnail", StringType(), nullable=True),
+                        StructField("topNewDevelopment", BooleanType(), nullable=True),
+                        StructField("url", StringType(), nullable=True)
+                    ])))
+                ])
+
+                data_formatter.convert_collection_data_types(PERSISTENT_DB, FORMATTED_DB, "idealista",
+                                                             new_schema_idealista)
+
+                new_schema_income = StructType([
+                    StructField("_id", IntegerType(), nullable=False),
+                    StructField("neigh_name", StringType(), nullable=False),
+                    StructField("district_id", IntegerType(), nullable=False),
+                    StructField("district_name", StringType(), nullable=False),
+                    StructField("info", ArrayType(StructType([
+                        StructField("year", IntegerType(), nullable=True),
+                        StructField("pop", IntegerType(), nullable=True),
+                        StructField("RFD", DoubleType(), nullable=True)
+                    ])), nullable=True)
+                ])
+
+                data_formatter.convert_collection_data_types(PERSISTENT_DB, FORMATTED_DB, "income",
+                                                             new_schema_income)
+
+                new_schema_building_age = StructType([
+                    StructField("_id", StringType(), nullable=False),
+                    StructField("neigh_name", StringType(), nullable=False),
+                    StructField("district_id", StringType(), nullable=False),
+                    StructField("district_name", StringType(), nullable=False),
+                    StructField("info", ArrayType(StructType([
+                        StructField("year", IntegerType(), nullable=True),
+                        StructField("mean_age", DoubleType(), nullable=True)
+                    ])), nullable=True)
+                ])
+
+                data_formatter.convert_collection_data_types(PERSISTENT_DB, FORMATTED_DB, "building_age",
+                                                             new_schema_building_age)
+
+                logger.info('Data types conversion completed.')
+                pass
+            elif action == 'drop-duplicates':
+                logger.info('Dropping duplicates...')
+                # Code for the 'drop-duplicates' action
+                # ...
+                logger.info('Duplicates dropped.')
+                pass
+            elif action == 'reconcile-data':
+                logger.info('Reconciling data with lookup tables...')
+
+                data_formatter.reconcile_data_with_lookup("income", "lookup_table_district",
+                                                          "income_reconciled", "district_name",
+                                                          "district_reconciled", "_id", "district_id")
+
+                data_formatter.reconcile_data_with_lookup("building_age", "lookup_table_district",
+                                                          "building_age_reconciled", "district_name",
+                                                          "district_reconciled", "_id", "district_id")
+
+                logger.info('Data reconciliation completed.')
+                pass
+            else:
+                logger.error('Invalid action specified for data-formatting mode.')
+
 
             logger.info('Building the Formatted Zone from the Persistent Zone completed successfully')
 
@@ -103,6 +236,10 @@ def main():
     #
     #     except Exception as e:
     #         logger.exception(f'Error occurred during .....: {e}')
+
+    # Add more switch cases if needed for other execution modes
+    else:
+        logger.error('Invalid execution mode specified.')
 
 
 if __name__ == '__main__':

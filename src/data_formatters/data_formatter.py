@@ -68,14 +68,14 @@ class DataFormatter:
             dataframe.write.format("mongo") \
                 .option('uri', uri) \
                 .option('encoding', 'utf-8-sig') \
-                .mode("rewrite") \
+                .mode("overwrite") \
                 .partitionBy("_id") \
                 .save()
         elif not partition and not append:
             dataframe.write.format("mongo") \
                 .option('uri', uri) \
                 .option('encoding', 'utf-8-sig') \
-                .mode("rewrite") \
+                .mode("overwrite") \
                 .save()
 
 
@@ -102,12 +102,13 @@ class DataFormatter:
         return deduplicated_df
 
     def filter_existing_records(self, result_df, existing_df):
-        if existing_df.count() > 0:
-            self.logger.info("Filtering out already existing records...")
-            result_df = result_df.subtract(existing_df)
+        self.logger.info("Filtering out already existing records...")
+        if not existing_df.isEmpty:
+            existing_ids = existing_df.select("_id").collect()
+            result_df = result_df.filter(~result_df["_id"].isin([row["_id"] for row in existing_ids]))
         return result_df
 
-    def format_lookup_table(self, output_collection, input_collection1, input_collection2):
+    def merge_lookup_table(self, output_collection, input_collection1, input_collection2):
         try:
             self.logger.info(f"Formatting Lookup-table {output_collection} and moving it to Formatted Zone.")
 
@@ -158,23 +159,15 @@ class DataFormatter:
         except Exception as e:
             self.logger.error(f"An error occurred during data reconciliation: {e}")
 
+    def convert_collection_data_types(self, db_name_input, db_name_output, collection_name, new_schema):
+        # Read the collection from MongoDB
+        df = self.read_mongo_collection(db_name_input, collection_name)
 
-    def change_data_types(self, db_name, collection_name, column_data_types):
-        df = self.read_mongo_collection(db_name, collection_name)
+        # Apply the new schema to the DataFrame
+        df_with_new_schema = df
+        for field in new_schema.fields:
+            if field.name in df.columns:
+                df_with_new_schema = df_with_new_schema.withColumn(field.name, df[field.name].cast(field.dataType))
 
-        def recursively_cast_columns(df, column_list, data_type):
-            if len(column_list) == 1:
-                return df.withColumn(column_list[0], col(column_list[0]).cast(data_type))
-            else:
-                nested_struct = struct(recursively_cast_columns(df, column_list[:-1], data_type).alias(column_list[-2]), col(column_list[-1]).alias(column_list[-1]))
-                return df.withColumn(column_list[-2], nested_struct)
-
-        for column, data_type in column_data_types.items():
-            if '.' in column:
-                # Handle nested structure
-                nested_columns = column.split('.')
-                df = recursively_cast_columns(df, nested_columns, data_type)
-            else:
-                df = df.withColumn(column, col(column).cast(data_type))
-
-        self.write_to_mongo_collection(db_name, collection_name, df)
+        # Write the DataFrame back to the same collection
+        self.write_to_mongo_collection(db_name_output, collection_name, df_with_new_schema, partition=True, append=True)
