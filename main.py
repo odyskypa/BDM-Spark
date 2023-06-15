@@ -238,7 +238,29 @@ def main():
             elif action == 'reconcile-data':
                 ### Only reconciling Idealista is missing, and the names
                 logger.info('Reconciling data with lookup tables...')
-                #
+
+                logger.info(f"Reading lookup data from MongoDB...")
+                lookupDF_district = data_formatter.read_mongo_collection(FORMATTED_DB, "lookup_table_district")
+                lookupDF_district = lookupDF_district.select("district", "_id")
+                # lookupDF_district = lookupDF_district.withColumnRenamed("district_name", "district")
+                lookupDF_district.cache()
+
+                lookupDF_neighborhood = data_formatter.read_mongo_collection(FORMATTED_DB, "lookup_table_neighborhood")
+                lookupDF_neighborhood = lookupDF_neighborhood.select("neighborhood_name", "_id")
+                lookupDF_neighborhood = lookupDF_neighborhood.withColumnRenamed("neighborhood_name", "neighborhood")
+                lookupDF_neighborhood.cache()
+
+                inputDF_income = data_formatter.read_mongo_collection(PERSISTENT_DB, "income")
+
+                income_rec = data_formatter.reconcile_data_with_lookup(inputDF_income, lookupDF_district,
+                                                 "district_name", "district", "_id", "district_id", 2)
+
+                final_inc_rec = data_formatter.reconcile_data_with_lookup(income_rec, lookupDF_neighborhood,
+                                                 "neigh_name ", "neighborhood", "_id", "_id", 6)
+
+                #data_formatter.write_to_mongo_collection(FORMATTED_DB, "income_reconciled", final_inc_rec)
+
+                ###################### OLD ############################################################################
                 # data_formatter.reconcile_data_with_lookup("income", "lookup_table_district",
                 #                                           "income_reconciled", "district_name",
                 #                                           "district_reconciled", "_id", "district_id")
@@ -251,9 +273,9 @@ def main():
                 #                                           "building_age_reconciled", "district_name",
                 #                                           "district_reconciled", "_id", "district_id")
                 #
-                data_formatter.reconcile_data_with_lookup("building_age", "lookup_table_neighborhood",
-                                                          "building_age_reconciled", "neigh_name",
-                                                          "neighborhood_reconciled", "_id", "_id")
+                # data_formatter.reconcile_data_with_lookup("building_age", "lookup_table_neighborhood",
+                #                                           "building_age_reconciled", "neigh_name",
+                #                                           "neighborhood_reconciled", "_id", "_id")
 
                 logger.info('Data reconciliation completed.')
                 pass

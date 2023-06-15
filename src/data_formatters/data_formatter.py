@@ -140,41 +140,6 @@ class DataFormatter:
         except Exception as e:
             self.logger.exception(e)
 
-    def reconcile_data_with_lookup(self, input_collection, lookup_collection, reconciled_collection,
-                                   input_join_attribute, lookup_join_attribute, lookup_id, input_id_reconcile):
-        try:
-
-            self.logger.info(f"Reading input data from MongoDB collection '{input_collection}'...")
-            inputDF = self.read_mongo_collection(self.persistent_db, input_collection)
-
-            self.logger.info(f"Reading lookup data from MongoDB collection '{lookup_collection}'...")
-            lookupDF = self.read_mongo_collection(self.formatted_db, lookup_collection)
-            lookupDF = lookupDF.select(lookup_join_attribute, lookup_id)
-
-            threshold = 2
-
-            self.logger.info("Performing join and reconciliation...")
-            resultDF = inputDF.join(lookupDF,
-                                    when(
-                                        levenshtein(col(input_join_attribute), col(lookup_join_attribute)) <= threshold,
-                                        True).otherwise(False),
-                                    "left"
-                                    ).withColumn(input_id_reconcile, lookupDF[lookup_id]) \
-                .drop(lookupDF[lookup_join_attribute]) \
-                .drop(lookupDF[lookup_id])
-
-            self.logger.info(f"Reading existing data from MongoDB collection '{reconciled_collection}'...")
-            existingDF = self.read_mongo_collection(self.formatted_db, reconciled_collection)
-
-            resultDF = self.filter_existing_records(resultDF, existingDF)
-
-            self.logger.info(f"Writing result DataFrame to MongoDB collection '{reconciled_collection}'...")
-            self.write_to_mongo_collection( self.formatted_db, reconciled_collection, resultDF)
-
-            #resultDF.show()
-        except Exception as e:
-            self.logger.error(f"An error occurred during data reconciliation: {e}")
-
     def transform_idealista_to_latest_info(self, db_name, collection_name):
 
         try:
@@ -224,3 +189,22 @@ class DataFormatter:
 
         # Write the DataFrame back to the same collection
         self.write_to_mongo_collection(db_name_output, collection_name, df_with_new_schema, True)
+
+    def reconcile_data_with_lookup(self, input_dF, lookup_df, input_join_attribute, lookup_join_attribute, lookup_id, input_id_reconcile, threshold):
+        try:
+
+            self.logger.info("Performing join and reconciliation...")
+            resultDF = input_dF.join(lookup_df,
+                                    when(
+                                        levenshtein(col(input_join_attribute),
+                                                    col(lookup_join_attribute)) <= threshold,
+                                        True).otherwise(False),
+                                    "left"
+                                    ).withColumn(input_id_reconcile, lookup_df[lookup_id]) \
+                .drop(lookup_df[lookup_join_attribute]) \
+                .drop(lookup_df[lookup_id])
+
+            resultDF.show()
+            return resultDF
+        except Exception as e:
+            self.logger.error(f"An error occurred during data reconciliation: {e}")
