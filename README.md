@@ -31,14 +31,15 @@ make use of the following commands, with the respective order:
     python main.py data-formatting drop-duplicates
     python main.py data-formatting reconcile-data
     ```
-- Moreover, for executing the `Descriptive Analytics` functionality in order to ...., use the following command:
+- Moreover, the `Descriptive Analytics` functionality can be used in order to prepare the necessary data for the KPIs and use them inside `Tableau`:
   - ```
     python main.py data-description
     ```
-- Lastly, for executing the `Predictive Analytics` processes, follow the commands below:
+- Lastly, for executing the `Predictive Analytics` processes, which trains a `Random Forest Classifier` for predicting the price of a new house in Barcelona, given certain characteristics, follow the command below:
   - ```
-      python main.py data-prediction
+      python main.py data-prediction train-model
       ```
 
-### Limitations
+### Tableua Dashboard of the Descriptive Analyics
+By following this [link](https://public.tableau.com/app/profile/mar.al.garcia/viz/BDM2_Kyparissis_Garcia/Dashboard1) one can take a look at descriptive analytics for the city of Barcelona.
 
