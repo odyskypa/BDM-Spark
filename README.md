@@ -18,6 +18,7 @@
     MONGODB_PORT=27017
     PERSISTENT_DB="persistent"
     FORMATTED_DB="formatted"
+    EXPLOITATION_DB="exploitation"
     ```
 - The project is divided into 3 main parts:
   - [The Data Formatting Processes](https://github.com/odyskypa/BDM-Spark/blob/main/src/data_formatters/data_formatter.py)
