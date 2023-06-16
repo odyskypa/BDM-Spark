@@ -1,4 +1,6 @@
 from pyspark.sql import SparkSession
+from pyspark.sql.functions import col
+
 from src.utils.mongo_utils import MongoDBUtils
 
 class DataModeling:
@@ -32,46 +34,58 @@ class DataModeling:
             self.mongodb_port,
             self.formatted_db,
             "idealista_reconciled"
-        ).select("_id", "size", "rooms", "bathrooms", "latitude", "longitude", "district_id", "neighborhood_id",
-                 "price")
+        ).select("_id", "size", "rooms", "bathrooms", "latitude", "longitude", "exterior", "floor", "has360",
+            "has3DTour", "hasLift", "hasPlan", "hasStaging", "hasVideo","neighborhood_id", "numPhotos", "price") \
+            .filter(col("municipality") == "Barcelona") \
+            .filter(col("neighborhood_id").isNotNull())
+
+
 
         # Read income_reconciled collection and select relevant columns
         income_df = MongoDBUtils.read_collection(
-            logger,
-            spark,
-            vm_host,
-            mongodb_port,
-            formatted_db,
+            self.logger,
+            self.spark,
+            self.vm_host,
+            self.mongodb_port,
+            self.formatted_db,
             "income_reconciled"
-        ).select("district_id", "info.year", "info.RFD")
+        ).select("_id", "info.year", "info.RFD")
 
         # Read buildin_age_reconciled collection and select relevant columns
         buildin_age_df = MongoDBUtils.read_collection(
-            logger,
-            spark,
-            vm_host,
-            mongodb_port,
-            formatted_db,
-            "buildin_age_reconciled"
-        ).select("district_id", "info.year", "info.mean_age")
+            self.logger,
+            self.spark,
+            self.vm_host,
+            self.mongodb_port,
+            self.formatted_db,
+            "building_age_reconciled"
+        ).select("_id", "info.year", "info.mean_age")
 
         # Join the three dataframes on district_id
         joined_df = idealista_df.join(
             income_df,
-            ["district_id"],
-            "left_outer"
-        ).join(
+            idealista_df["neighborhood_id"] == income_df["_id"],
+            "left"
+        ).drop(income_df["_id"]).withColumnRenamed("year", "income_year")
+
+        #joined_df.show()
+
+        joined_df = joined_df.join(
             buildin_age_df,
-            ["district_id"],
-            "left_outer"
-        )
+            joined_df["neighborhood_id"] == buildin_age_df["_id"],
+            "left"
+        ).drop(buildin_age_df["_id"]).withColumnRenamed("year", "building_year")
+
+        #joined_df.show()
+
+        self.logger.info('Data sources joined successfully.')
 
         # Save the joined dataframe to a new collection in MongoDB
         MongoDBUtils.write_to_collection(
-            logger,
-            vm_host,
-            mongodb_port,
-            exploitation_db,
-            "joined_collection",
+            self.logger,
+            self.vm_host,
+            self.mongodb_port,
+            self.exploitation_db,
+            "model_collection",
             joined_df
         )

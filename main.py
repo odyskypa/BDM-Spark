@@ -321,6 +321,8 @@ def main():
             # Initialize a DataCollector instance
             data_prediction = DataModeling(logger, VM_HOST, MONGODB_PORT, PERSISTENT_DB, FORMATTED_DB, EXPLOITATION_DB)
 
+            data_prediction.get_data_from_formatted_to_exploitation()
+
             logger.info('Data modeling processes completed.')
 
         except Exception as e:
