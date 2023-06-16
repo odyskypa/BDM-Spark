@@ -52,6 +52,7 @@ VM_USER = os.getenv('VM_USER')
 MONGODB_PORT = os.getenv('MONGODB_PORT')
 FORMATTED_DB = os.getenv('FORMATTED_DB')
 PERSISTENT_DB = os.getenv('PERSISTENT_DB')
+EXPLOITATION_DB = os.getenv('EXPLOITATION_DB')
 
 
 def main():
@@ -59,20 +60,22 @@ def main():
     parser = argparse.ArgumentParser(description='Formatted and Exploitation Landing Zones')
 
     # Add argument for execution mode
-    parser.add_argument('exec_mode', type=str, choices=['data-formatting', 'persistence-loading'],
+    parser.add_argument('exec_mode', type=str, choices=['data-formatting', 'data-prediction', 'data-description'],
                         help='Execution mode')
 
-    # Add argument for action within data-formatting mode
-    parser.add_argument('action', type=str, choices=['merge-lookup-tables', 'fix-data-types', 'drop-duplicates',
-                                                     'reconcile-data'],
-                        help='Action within data-formatting mode')
+
 
     # Parse command line arguments
     args = parser.parse_args()
     exec_mode = args.exec_mode
-    action = args.action
 
     if exec_mode == 'data-formatting':
+
+        # Add argument for action within data-formatting mode
+        parser.add_argument('action', type=str, choices=['merge-lookup-tables', 'fix-data-types', 'drop-duplicates',
+                                                         'reconcile-data'],
+                            help='Action within data-formatting mode')
+        action = args.action
 
         try:
             # Initialize a DataCollector instance
@@ -316,7 +319,7 @@ def main():
         try:
 
             # Initialize a DataCollector instance
-            data_prediction = DataModeling(logger, VM_HOST, MONGODB_PORT, PERSISTENT_DB, FORMATTED_DB)
+            data_prediction = DataModeling(logger, VM_HOST, MONGODB_PORT, PERSISTENT_DB, FORMATTED_DB, EXPLOITATION_DB)
 
             logger.info('Data modeling processes completed.')
 
