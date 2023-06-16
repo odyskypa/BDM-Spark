@@ -1,14 +1,10 @@
 import numpy as np
 from pyspark.ml.feature import StringIndexer, VectorAssembler
-from pyspark.sql import SparkSession, Window
-from pyspark.sql.functions import col, mean, udf, expr, explode
-import os
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col, expr
 from pyspark.ml import Pipeline
 from pyspark.ml.regression import RandomForestRegressor
 from pyspark.ml.evaluation import RegressionEvaluator
-from pyspark.sql.types import DoubleType
-import subprocess
-
 from src.utils.mongo_utils import MongoDBUtils
 import matplotlib.pyplot as plt
 
