@@ -22,7 +22,7 @@ class DataModeling:
                 .getOrCreate()
         except Exception as e:
             self.logger.error(
-                f"An error occurred during the creation of the Spark Configuration during the creation of DataFormatter class."
+                f"An error occurred during the creation of the Spark Configuration during the creation of DataModeling class."
                 f" This is the error: {e}")
 
     def get_data_from_formatted_to_exploitation(self):

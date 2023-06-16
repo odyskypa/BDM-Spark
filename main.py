@@ -308,7 +308,8 @@ def main():
         try:
 
             # Initialize a dataDescription instance
-            data_description = DataDescription(logger, VM_HOST, MONGODB_PORT, PERSISTENT_DB, FORMATTED_DB)
+            data_description = DataDescription(logger, VM_HOST, MONGODB_PORT, PERSISTENT_DB,
+                                               FORMATTED_DB, EXPLOITATION_DB)
 
             logger.info('Data description processes completed.')
 
