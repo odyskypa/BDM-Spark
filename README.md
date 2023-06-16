@@ -41,6 +41,12 @@ make use of the following commands, with the respective order:
       python main.py data-prediction train-model
       ```
 
-### Tableua Dashboard of the Descriptive Analyics
+### Tableau Dashboard of the Descriptive Analyics
 By following this [link](https://public.tableau.com/app/profile/mar.al.garcia/viz/BDM2_Kyparissis_Garcia/Dashboard1) one can take a look at descriptive analytics for the city of Barcelona.
 
+### Performance of Random Forest Classifier
+The following two figures present the capability of the final model to predict future values of house prices based on the input features.
+***
+![Actual vs Predicted Values](./model_images/actual-vs-predicted-values.png)
+***
+![Feature Importance](./model_images/feature-importance.png)
