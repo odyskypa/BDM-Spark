@@ -4,12 +4,10 @@ import findspark
 import logging.handlers
 from dotenv import load_dotenv
 from pyspark.sql.types import *
-from pyspark.sql.functions import lit
 
 from src.data_formatters.data_formatter import DataFormatter
 from src.descriptive_analysis.data_description import DataDescription
 from src.predictive_analysis.data_modeling import DataModeling
-from src.utils.mongo_utils import MongoDBUtils
 
 # Create logger object
 logger = logging.getLogger(__name__)
@@ -63,19 +61,19 @@ def main():
     parser.add_argument('exec_mode', type=str, choices=['data-formatting', 'data-prediction', 'data-description'],
                         help='Execution mode')
 
+    # Add argument for action within data-formatting mode
+    parser.add_argument('action', type=str, choices=['merge-lookup-tables', 'fix-data-types', 'drop-duplicates',
+                                                     'reconcile-data', 'train-model', 'predict'],
+                        help='Action within data-formatting mode')
+
 
 
     # Parse command line arguments
     args = parser.parse_args()
     exec_mode = args.exec_mode
+    action = args.action
 
     if exec_mode == 'data-formatting':
-
-        # Add argument for action within data-formatting mode
-        parser.add_argument('action', type=str, choices=['merge-lookup-tables', 'fix-data-types', 'drop-duplicates',
-                                                         'reconcile-data'],
-                            help='Action within data-formatting mode')
-        action = args.action
 
         try:
             # Initialize a DataCollector instance
@@ -247,7 +245,7 @@ def main():
             elif action == 'reconcile-data':
                 ### Only reconciling Idealista is missing, and the names
                 logger.info('Reconciling data with lookup tables...')
-                data_formatter.reconcile_data_action()
+                #data_formatter.reconcile_data_action()
 
                 # logger.info(f"Reading lookup data from MongoDB...")
                 # lookupDF_district = data_formatter.read_mongo_collection(FORMATTED_DB, "lookup_table_district")
@@ -317,14 +315,34 @@ def main():
             logger.exception(f'Error occurred during data description process: {e}')
 
     elif exec_mode == 'data-prediction':
+
         try:
 
-            # Initialize a DataCollector instance
-            data_prediction = DataModeling(logger, VM_HOST, MONGODB_PORT, PERSISTENT_DB, FORMATTED_DB, EXPLOITATION_DB)
+            if action == 'train-model':
 
-            data_prediction.get_data_from_formatted_to_exploitation()
+                # Initialize a DataCollector instance
+                data_prediction = DataModeling(logger, VM_HOST, MONGODB_PORT, PERSISTENT_DB, FORMATTED_DB, EXPLOITATION_DB)
 
-            logger.info('Data modeling processes completed.')
+                #data_prediction.get_data_from_formatted_to_exploitation()
+
+                model = data_prediction.preprocess_and_train_model()
+
+                # Get the current directory
+                current_dir = os.getcwd()
+
+                # Save the model in the current directory
+                #model.write().overwrite().save(current_dir + "/model")
+
+
+                logger.info(f'Data training process completed. Model saved at "C:/model-bdm/"')
+
+            elif action == 'predict':
+
+                # Initialize a DataCollector instance
+                # data_prediction = DataModeling(logger, VM_HOST, MONGODB_PORT, PERSISTENT_DB, FORMATTED_DB, EXPLOITATION_DB
+
+                logger.info('Prediction is:.')
+
 
         except Exception as e:
             logger.exception(f'Error occurred during data modeling process: {e}')
