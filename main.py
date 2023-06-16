@@ -80,7 +80,6 @@ def main():
             data_formatter = DataFormatter(logger, VM_HOST, MONGODB_PORT, PERSISTENT_DB, FORMATTED_DB)
 
             if action == 'merge-lookup-tables':
-                ### DONE !!!!!!!
                 logger.info('Merging and deduplicate lookup tables...')
 
                 data_formatter.merge_district_lookup_table("lookup_table_district",
@@ -91,7 +90,6 @@ def main():
                 logger.info('Lookup table merge and deduplication completed.')
                 pass
             elif action == 'fix-data-types':
-                ### DONE !!!!!!!!
                 logger.info('Fixing data types...')
 
                 # Define the new schema with the desired data types
@@ -209,87 +207,17 @@ def main():
                 logger.info('Data types conversion completed.')
                 pass
             elif action == 'drop-duplicates':
-                ### DONE !!!!!!!!
                 logger.info('Dropping duplicates...')
 
-                # logger.info('Read collection "income" from MongoDB.')
-                # income_df = data_formatter.read_mongo_collection(FORMATTED_DB, "income")
-                #
-                # logger.info('Duplicates dropped for collection "income".')
-                # deduplicated_income_df = data_formatter.drop_duplicates(income_df)
-                #
-                # logger.info('Read collection "building_age" from MongoDB.')
-                # building_age_df = data_formatter.read_mongo_collection(FORMATTED_DB, "building_age")
-                #
-                # logger.info('Duplicates dropped for collection "building_age".')
-                # deduplicated_building_age_df = data_formatter.drop_duplicates(building_age_df)
-                #
-                # logger.info('Writing deduplicated data back to MongoDB.')
-                #
-                # data_formatter.write_to_mongo_collection(FORMATTED_DB, "income", deduplicated_income_df)
-                # logger.info('Deduplicated "income" data written to MongoDB.')
-                #
-                # data_formatter.write_to_mongo_collection(FORMATTED_DB, "building_age", deduplicated_building_age_df)
-                # logger.info('Deduplicated "building_age" data written to MongoDB.')
-                #
-                # logger.info('Reading collection "idealista" from MongoDB.')
-                #
-                # df = data_formatter.transform_idealista_to_latest_info(FORMATTED_DB, "idealista")
-                # data_formatter.write_to_mongo_collection(FORMATTED_DB, "idealista_cleaned", df)
-                # logger.info('Deduplicated "idealista" data written to MongoDB.')
                 data_formatter.drop_duplicates_action()
 
                 logger.info('Duplicates dropped and data written to MongoDB successfully.')
 
                 pass
             elif action == 'reconcile-data':
-                ### Only reconciling Idealista is missing, and the names
                 logger.info('Reconciling data with lookup tables...')
-                #data_formatter.reconcile_data_action()
 
-                # logger.info(f"Reading lookup data from MongoDB...")
-                # lookupDF_district = data_formatter.read_mongo_collection(FORMATTED_DB, "lookup_table_district")
-                # lookupDF_district = lookupDF_district.select("district_name", "_id")
-                # lookupDF_district = lookupDF_district.withColumnRenamed("district_name", "district")
-                # lookupDF_district.cache()
-                #
-                # lookupDF_neighborhood = data_formatter.read_mongo_collection(FORMATTED_DB, "lookup_table_neighborhood")
-                # lookupDF_neighborhood = lookupDF_neighborhood.select("neighborhood_name", "_id")
-                # lookupDF_neighborhood = lookupDF_neighborhood.withColumnRenamed("neighborhood_name", "neighborhood")
-                # lookupDF_neighborhood.cache()
-                #
-                # inputDF_income = data_formatter.read_mongo_collection(PERSISTENT_DB, "income")
-                # inputDF_building_age = data_formatter.read_mongo_collection(PERSISTENT_DB, "building_age")
-                # input_idealista = data_formatter.read_mongo_collection(FORMATTED_DB, "idealista_cleaned")
-                # input_idealista = input_idealista.withColumnRenamed("district", "district_name")
-                # input_idealista = input_idealista.withColumnRenamed("neighborhood", "neighborhood_name")
-                # input_idealista = input_idealista.withColumn('district_id', lit(''))
-                # input_idealista = input_idealista.withColumn('neighborhood_id', lit(''))
-                #
-                # # income_rec = data_formatter.reconcile_data_with_lookup(inputDF_income, lookupDF_district,
-                # #                                 "district_name", "district", "_id", "district_id", 2)
-                #
-                # # final_inc_rec = data_formatter.reconcile_data_with_lookup(income_rec, lookupDF_neighborhood,
-                # #                                 "neigh_name ", "neighborhood", "_id", "_id", 3)
-                #
-                # # building_age_rec = data_formatter.reconcile_data_with_lookup(inputDF_building_age, lookupDF_district,
-                # #                                 "district_name", "district", "_id", "district_id", 2)
-                #
-                # # final_build_age_rec = data_formatter.reconcile_data_with_lookup(building_age_rec, lookupDF_neighborhood,
-                # #                                                          "neigh_name", "neighborhood", "_id", "_id",
-                # #                                                          3)
-                #
-                # # idealista_rec = data_formatter.reconcile_data_with_lookup(input_idealista, lookupDF_district,
-                # # "district_name", "district", "_id",
-                # # "district_id", 2)
-                #
-                # # final_idealista_rec = data_formatter.reconcile_data_with_lookup(idealista_rec, lookupDF_neighborhood,
-                # # "neighborhood_name", "neighborhood", "_id",
-                # # "neighborhood_id", 2)
-                #
-                # # data_formatter.write_to_mongo_collection(FORMATTED_DB, "income_reconciled", final_inc_rec)
-                # # data_formatter.write_to_mongo_collection(FORMATTED_DB, "building_age_reconciled", final_build_age_rec)
-                # # data_formatter.write_to_mongo_collection(FORMATTED_DB, "idealista_reconciled", final_idealista_rec)
+                data_formatter.reconcile_data_action()
 
                 logger.info('Data reconciliation completed.')
                 pass
@@ -325,7 +253,7 @@ def main():
                 # Initialize a DataCollector instance
                 data_prediction = DataModeling(logger, VM_HOST, MONGODB_PORT, PERSISTENT_DB, FORMATTED_DB, EXPLOITATION_DB)
 
-                #data_prediction.get_data_from_formatted_to_exploitation()
+                data_prediction.get_data_from_formatted_to_exploitation()
 
                 model = data_prediction.preprocess_and_train_model()
 
@@ -333,12 +261,13 @@ def main():
                 current_dir = os.getcwd()
 
                 # Save the model in the current directory
-                #model.write().overwrite().save(current_dir + "/model")
+                model.write().overwrite().save(current_dir + "/model")
 
 
-                logger.info(f'Data training process completed. Model saved at "C:/model-bdm/"')
+                logger.info(f'Data training process completed. Model saved at {current_dir}')
 
             elif action == 'predict':
+                # FUTURE WORK
 
                 # Initialize a DataCollector instance
                 # data_prediction = DataModeling(logger, VM_HOST, MONGODB_PORT, PERSISTENT_DB, FORMATTED_DB, EXPLOITATION_DB
