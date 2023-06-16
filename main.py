@@ -323,10 +323,15 @@ def main():
                 # Initialize a DataCollector instance
                 data_prediction = DataModeling(logger, VM_HOST, MONGODB_PORT, PERSISTENT_DB, FORMATTED_DB, EXPLOITATION_DB)
 
-                data_prediction.get_data_from_formatted_to_exploitation()
+                #data_prediction.get_data_from_formatted_to_exploitation()
 
                 model = data_prediction.preprocess_and_train_model()
-                #model.write().overwrite().save("model")
+
+                # Get the current directory
+                current_dir = os.getcwd()
+
+                # Save the model in the current directory
+                #model.write().overwrite().save(current_dir + "/model")
 
 
                 logger.info(f'Data training process completed. Model saved at "C:/model-bdm/"')
