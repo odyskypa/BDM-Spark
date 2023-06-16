@@ -311,6 +311,8 @@ def main():
             data_description = DataDescription(logger, VM_HOST, MONGODB_PORT, PERSISTENT_DB,
                                                FORMATTED_DB, EXPLOITATION_DB)
 
+            data_description.get_data_from_formatted_to_exploitation()
+
             logger.info('Data description processes completed.')
 
         except Exception as e:
