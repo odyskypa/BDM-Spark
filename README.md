@@ -3,16 +3,22 @@
 ### Barcelona Rentals - Territorial Income Distribution - Age of Buildings
 This part of the project is focused on the `Formatted and Exploitation Zones` of the Data Management Backbone
 ***
+### System's Design and BPMN
+
+In the following two figures the `system's design` and its `BPMN` are depicted.
+![System Design](./p2-design/bdm-p2.jpg)
+![BPMN](./p2-design/bdm-P2-bpmn.jpg)
+
 ### Instructions for Executing the Code
 
 - Download Python version 3.10
 - Clone this repository locally
-  - ``` git clone git@github.com:odyskypa/BDM-Spark.git```
+  - ``` git clone https://github.com/odyskypa/spark-formatted-exploitation-zones.git```
 - Create a virtual environment with Python 3.10 interpreter and run the following command to install the required libraries:
   - ```
       pip install requirements.txt
     ```
-- Add a `.env` file inside `BDM-Spark` folder, including the following parameters with their appropriate values:
+- Add a `.env` file inside `spark-formatted-exploitation-zones` folder, including the following parameters with their appropriate values:
   - ```
     VM_HOST="..."
     VM_USER="..."
