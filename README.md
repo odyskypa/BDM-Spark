@@ -1,6 +1,7 @@
 # Big Data Management - Universitat Politècnica de Catalunya
 ## Implementation of a (Big) Data Management Backbone
-### Barcelona Rentals - Territorial Income Distribution - Age of Buildings 
+### Barcelona Rentals - Territorial Income Distribution - Age of Buildings
+This part of the project is focused on the `Formatted and Exploitation Zones` of the Data Management Backbone
 ***
 ### Instructions for Executing the Code
 
